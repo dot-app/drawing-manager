@@ -1739,6 +1739,29 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		mask.addEventListener("mousemove", mousemoveAction);
 	};
 
+	DrawingManager.prototype._getPolygonArea = function (polygon) {
+		//检查类型
+		if (!(polygon instanceof BMapGL.Polygon) && !(polygon instanceof Array)) {
+			return 0;
+		}
+		var pts;
+		if (polygon instanceof BMapGL.Polygon) {
+			pts = polygon.getPath();
+		} else {
+			pts = polygon;
+		}
+
+		if (pts.length < 3) {
+			//小于3个顶点，不能构建面
+			return 0;
+		}
+
+		let pmap = pts.map(function (point) {
+			return [point.lng, point.lat];
+		});
+		return turf.area(turf.polygon([pmap]));
+	};
+
 	/**
 	 * 添加显示所绘制图形的面积或者长度
 	 * @param {overlay} 覆盖物
@@ -1758,7 +1781,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 					result.data = BMapGLLib.GeoUtils.getPolylineDistance(overlay);
 					break;
 				case "Polygon":
-					result.data = BMapGLLib.GeoUtils.getTurfPolygonArea(overlay);
+					result.data = this._getPolygonArea(overlay);
 					// result.data = BMapGLLib.GeoUtils.getPolygonArea(overlay);
 					break;
 				case "Circle":
@@ -1791,15 +1814,13 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		if (!BMapGLLib.GeoUtils) {
 			var turfScript = document.createElement("script");
 			turfScript.setAttribute("type", "text/javascript");
-			turfScript.setAttribute("src", "https://gitee.com/dot-app/drawing-manager/raw/master/turf.min.js");
+			turfScript.setAttribute("src", "https://cdn.bootcdn.net/ajax/libs/Turf.js/6.5.0/turf.min.js");
 			document.body.appendChild(turfScript);
 
-            
 			var script = document.createElement("script");
 			script.setAttribute("type", "text/javascript");
-			script.setAttribute("src", "https://gitee.com/dot-app/drawing-manager/raw/master/GeoUtils.min.js");
+            script.setAttribute('src', '//mapopen.cdn.bcebos.com/github/BMapGLLib/GeoUtils/src/GeoUtils.min.js');
 			document.body.appendChild(script);
-
 		}
 	};
 
