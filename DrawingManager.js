@@ -1801,7 +1801,10 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 			/**
 			 * 这里我们只需要开启计算面积功能，但并不需要在地图上添加显示面积的label，所以注释掉
 			 */
-			// result.label = this._addLabel(point, result.data);
+			var opts = this._opts;
+			if (opts.enablePrintResult) {
+				result.label = this._addLabel(point, result.data + (type == "Polyline" ? " 米" : " 平方米"));
+			}
 		}
 		return result;
 	};
@@ -1819,7 +1822,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 
 			var script = document.createElement("script");
 			script.setAttribute("type", "text/javascript");
-            script.setAttribute('src', '//mapopen.cdn.bcebos.com/github/BMapGLLib/GeoUtils/src/GeoUtils.min.js');
+			script.setAttribute("src", "//mapopen.cdn.bcebos.com/github/BMapGLLib/GeoUtils/src/GeoUtils.min.js");
 			document.body.appendChild(script);
 		}
 	};
@@ -1843,9 +1846,27 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 	 * @param {Point}
 	 * @param {String} 所以显示的内容
 	 */
-	DrawingManager.prototype._addLabel = function (point, content) {
+	DrawingManager.prototype._addLabel = function (points, content) {
+		console.log(points);
+		if (!Array.isArray(points)) points = [points];
+		if (!content) return;
+
+		let lng_arr = points.map((e) => e.lng);
+		let lat_arr = points.map((e) => e.lat);
+
+		let max_lng = Math.max(...lng_arr);
+		let min_lng = Math.min(...lng_arr);
+		let center_lng = min_lng + (max_lng - min_lng) / 2;
+
+		let max_lat = Math.max(...lat_arr);
+		let min_lat = Math.min(...lat_arr);
+		let center_lat = min_lat + (max_lat - min_lat) / 2;
+
+		let point = { lng: center_lng, lat: center_lat };
+
 		var label = new BMapGL.Label(content, {
 			position: point,
+			offset: new BMapGL.Size(-content.length * 4, 10),
 		});
 		this._map.addOverlay(label);
 		return label;
@@ -1992,18 +2013,21 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		var overlays = this.overlays;
 		document.getElementById("confirmOperate").addEventListener("click", function (e) {
 			map.removeOverlay(that);
+			console.log(overlay);
+
+			let points = overlay.getPath();
 			if (that.type == "rectangle") {
-				var calculate = that.DrawingManager._calculate(overlay, overlay.getPath());
+				var calculate = that.DrawingManager._calculate(overlay, points);
 				that.DrawingManager.overlays.push(overlay);
 			} else if (that.type == "circle") {
 				var calculate = that.DrawingManager._calculate(overlay, that.point);
 				that.DrawingManager.overlays.push(overlay);
 			} else if (that.type == "polygon") {
-				var calculate = that.DrawingManager._calculate(overlay, overlay.getPath());
+				var calculate = that.DrawingManager._calculate(overlay, points);
 				that.DrawingManager.overlays.push(overlay);
 				overlay.disableEditing();
 			} else if (that.type == "polyline") {
-				var calculate = that.DrawingManager._calculate(overlay, overlay.getPath());
+				var calculate = that.DrawingManager._calculate(overlay, points);
 				that.DrawingManager.overlays.push(overlay);
 				overlay.disableEditing();
 			}
