@@ -1791,13 +1791,13 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		if (!BMapGLLib.GeoUtils) {
 			var turfScript = document.createElement("script");
 			turfScript.setAttribute("type", "text/javascript");
-			turfScript.setAttribute("src", "./turf.min.js");
+			turfScript.setAttribute("src", "https://gitee.com/dot-app/drawing-manager/raw/master/turf.min.js");
 			document.body.appendChild(turfScript);
 
             
 			var script = document.createElement("script");
 			script.setAttribute("type", "text/javascript");
-			script.setAttribute("src", "./GeoUtils.js");
+			script.setAttribute("src", "https://gitee.com/dot-app/drawing-manager/raw/master/GeoUtils.min.js");
 			document.body.appendChild(script);
 
 		}
