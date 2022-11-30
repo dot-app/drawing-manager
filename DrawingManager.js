@@ -640,6 +640,9 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 			opts = opts || {};
 			this.overlays = []; // 用来存储覆盖物
 
+			this.labels = [];
+			this.buttons = [];
+
 			this._initialize(map, opts);
 		});
 
@@ -791,6 +794,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 				return overlay;
 			}
 		}
+		this._removeLabel(overlay);
 	};
 
 	/**
@@ -809,8 +813,10 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 	 */
 	DrawingManager.prototype.clearOverlays = function () {
 		var map = this._map;
+		var that = this;
 		this.overlays.forEach(function (overlay) {
 			map.removeOverlay(overlay);
+			that._removeLabel(overlay);
 		});
 		this.overlays.length = 0;
 	};
@@ -1767,7 +1773,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 	 * @param {overlay} 覆盖物
 	 * @param {point} 显示的位置
 	 */
-	DrawingManager.prototype._calculate = function (overlay, point) {
+	DrawingManager.prototype._calculate = function (overlay) {
 		var result = {
 			data: 0, // 计算出来的长度或面积
 			label: null, // 显示长度或面积的label对象
@@ -1803,7 +1809,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 			 */
 			var opts = this._opts;
 			if (opts.enablePrintResult) {
-				result.label = this._addLabel(point, result.data + (type == "Polyline" ? " 米" : " 平方米"));
+				result.label = this._addLabel(overlay, result.data + (type == "Polyline" ? " 米" : " 平方米"));
 			}
 		}
 		return result;
@@ -1843,13 +1849,14 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 
 	/**
 	 * 向地图中添加文本标注
-	 * @param {Point}
+	 * @param {overlay}
 	 * @param {String} 所以显示的内容
 	 */
-	DrawingManager.prototype._addLabel = function (points, content) {
-		console.log(points);
+	DrawingManager.prototype._addLabel = function (overlay, content) {
+		let points = overlay.getPath();
 		if (!Array.isArray(points)) points = [points];
 		if (!content) return;
+		let hashCode = overlay.hashCode;
 
 		let lng_arr = points.map((e) => e.lng);
 		let lat_arr = points.map((e) => e.lat);
@@ -1866,10 +1873,116 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 
 		var label = new BMapGL.Label(content, {
 			position: point,
-			offset: new BMapGL.Size(-content.length * 4, 10),
+			offset: new BMapGL.Size(-content.length * 4, -10),
 		});
+
+		this._removeLabel(overlay);
 		this._map.addOverlay(label);
+		this.labels.push({ hashCode: hashCode, label: label });
+
 		return label;
+	};
+	DrawingManager.prototype._removeLabel = function (overlay) {
+		let hashCode = overlay.hashCode;
+		let existIndex = this.labels.findIndex((e) => e.hashCode == hashCode);
+		if (existIndex != -1) {
+			old = this.labels[existIndex];
+			this.labels.splice(existIndex, 1);
+			this._map.removeOverlay(old.label);
+		}
+	};
+
+	//buttons
+	DrawingManager.prototype._addButtons = function (data) {
+		let overlay = data.overlay;
+		let hashCode = overlay.hashCode;
+		this._removeButtons(overlay);
+
+		//添加关闭按钮
+		this._removeButtons(overlay);
+
+		let operateWindow2 = new finalOperate(data);
+		map.addOverlay(operateWindow2);
+
+		this.buttons.push({ hashCode: hashCode, overlay: overlay });
+		return operateWindow2;
+	};
+
+	DrawingManager.prototype._removeButtons = function (overlay) {
+		let hashCode = overlay.hashCode;
+		let existIndex = this.buttons.findIndex((e) => e.hashCode == hashCode);
+		if (existIndex != -1) {
+			old = this.buttons[existIndex];
+			this.buttons.splice(existIndex, 1);
+			this._map.removeOverlay(old.overlay);
+		}
+	};
+
+	// 确认,取消操作覆盖物
+	function finalOperate(data) {
+		this.type = data.type;
+		this.point = data.point;
+		this.overlay = data.overlay;
+		this.DrawingManager = data.DrawingManager;
+		this._map = data.map;
+	}
+
+	finalOperate.prototype = new BMapGL.Overlay();
+	finalOperate.prototype.dispatchEvent = baidu.lang.Class.prototype.dispatchEvent;
+	finalOperate.prototype.addEventListener = baidu.lang.Class.prototype.addEventListener;
+	finalOperate.prototype.removeEventListener = baidu.lang.Class.prototype.removeEventListener;
+
+	finalOperate.prototype.initialize = function () {
+		var me = this;
+		this.hashCode = me.overlay.hashCode;
+
+		var div = (this.div = document.createElement("div"));
+		div.className = "operateWindow";
+		var html = '<div><span class="finalOperate cancelOperate_' + this.hashCode + '"></span></div>';
+		div.innerHTML = html;
+		this._map.getPanes().markerPane.appendChild(div);
+		this.updateWindow();
+		this._bind(div);
+		this._bind(div);
+		this.setPosition(this.point);
+		return div;
+	};
+
+	finalOperate.prototype._bind = function (div) {
+		var that = this;
+		var map = this._map;
+		var overlay = this.overlay;
+		div.addEventListener("click", function (e) {
+			map.removeOverlay(that);
+			map.removeOverlay(overlay);
+			that.DrawingManager._removeLabel(overlay);
+		});
+	};
+
+	finalOperate.prototype.setPosition = function (point, isright) {
+		this.point = point;
+		var map = this._map,
+			pixel = map.pointToOverlayPixel(this.point);
+		if (isright) {
+			this.div.classList.remove("operateLeft");
+			this.div.style.left = pixel.x + 15 + "px";
+		} else {
+			this.div.classList.add("operateLeft");
+			this.div.style.left = pixel.x - 105 + "px";
+		}
+		this.div.style.top = pixel.y - 16 + "px";
+	};
+
+	finalOperate.prototype.updateWindow = function () {
+		let list = document.getElementsByClassName("cancelOperate_" + this.hashCode);
+		if (list.length > 0) list[0].style.display = "block";
+	};
+
+	finalOperate.prototype.draw = function () {
+		var map = this._map,
+			pixel = map.pointToOverlayPixel(this.point);
+		this.div.style.left = pixel.x + 15 + "px";
+		this.div.style.top = pixel.y - 16 + "px";
 	};
 
 	/**
@@ -2013,23 +2126,32 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		var overlays = this.overlays;
 		document.getElementById("confirmOperate").addEventListener("click", function (e) {
 			map.removeOverlay(that);
-			console.log(overlay);
 
-			let points = overlay.getPath();
 			if (that.type == "rectangle") {
-				var calculate = that.DrawingManager._calculate(overlay, points);
+				var calculate = that.DrawingManager._calculate(overlay);
 				that.DrawingManager.overlays.push(overlay);
 			} else if (that.type == "circle") {
-				var calculate = that.DrawingManager._calculate(overlay, that.point);
+				var calculate = that.DrawingManager._calculate(overlay);
 				that.DrawingManager.overlays.push(overlay);
 			} else if (that.type == "polygon") {
-				var calculate = that.DrawingManager._calculate(overlay, points);
+				var calculate = that.DrawingManager._calculate(overlay);
 				that.DrawingManager.overlays.push(overlay);
 				overlay.disableEditing();
 			} else if (that.type == "polyline") {
-				var calculate = that.DrawingManager._calculate(overlay, points);
+				var calculate = that.DrawingManager._calculate(overlay);
 				that.DrawingManager.overlays.push(overlay);
 				overlay.disableEditing();
+			}
+
+			var opts = that.DrawingManager._opts;
+			if (opts.enableRemove) {
+				that.DrawingManager._addButtons({
+					type: that.type,
+					point: that.point,
+					overlay: overlay,
+					DrawingManager: that.DrawingManager,
+					map: map,
+				});
 			}
 
 			that.DrawingManager._dispatchOverlayComplete(overlay, calculate);
@@ -2057,6 +2179,7 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 				}
 			}
 			map.removeOverlay(overlay);
+			that.DrawingManager._removeLabel(overlay);
 
 			that.DrawingManager._dispatchOverlayCancel(overlay);
 			// that.DrawingManager._mask.show();
@@ -2073,13 +2196,13 @@ var BMAP_DRAWING_MARKER = "marker", // 鼠标画点模式
 		var limit = this.limit;
 		var calculate;
 		if (this.type == "rectangle") {
-			calculate = this.DrawingManager._calculate(overlay, overlay.getPath());
+			calculate = this.DrawingManager._calculate(overlay);
 		} else if (this.type == "circle") {
-			calculate = this.DrawingManager._calculate(overlay, this.point);
+			calculate = this.DrawingManager._calculate(overlay);
 		} else if (this.type == "polygon") {
-			calculate = this.DrawingManager._calculate(overlay, overlay.getPath());
+			calculate = this.DrawingManager._calculate(overlay);
 		} else if (this.type == "polyline") {
-			calculate = this.DrawingManager._calculate(overlay, overlay.getPath());
+			calculate = this.DrawingManager._calculate(overlay);
 		}
 
 		if (Object.prototype.toString.call(limit) === "[object Number]" && calculate.data > limit) {
