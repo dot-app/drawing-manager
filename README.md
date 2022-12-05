@@ -11,8 +11,8 @@
 ## 引入文件
 ```HTML
 <!-- 引入文件 -->
-<link href="//cdn.jsdelivr.net/gh/dot-app/drawing-manager/index.min.css" rel="stylesheet" />
-<script type="text/javascript" src="//cdn.jsdelivr.net/gh/dot-app/drawing-manager/index.min.js"></script>
+<link href="//cdn.jsdelivr.net/gh/dot-app/drawing-manager/DrawingManager.min.css" rel="stylesheet" />
+<script type="text/javascript" src="//cdn.jsdelivr.net/gh/dot-app/drawing-manager/DrawingManager.min.js"></script>
  
 ```
 
@@ -95,8 +95,8 @@ const draw = async (e) => {
     console.log(BMap);
 
     if (!DrawingManager) {
-        dynamicLoadCss('http://10.10.10.10:5501/DrawingManager.css');
-        await loadJS('http://10.10.10.10:5501/DrawingManager.js');
+        dynamicLoadCss('//cdn.jsdelivr.net/gh/dot-app/drawing-manager/DrawingManager.min.css');
+        await loadJS('//cdn.jsdelivr.net/gh/dot-app/drawing-manager/DrawingManager.min.js');
         DrawingManager = window['BMapGLLib'].DrawingManager;
     }
 
