@@ -1,0 +1,23 @@
+{
+    "name": "drawing-manager",
+    "version": "1.0.0",
+    "description": "引入turf修正百度BMapGLLib计算面积不准确的bug，并进行一些简单的扩展；",
+    "main": "index.js",
+    "style": "index.css",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dot-app/drawing-manager.git"
+    },
+    "keywords": [
+        "vue3",
+        "baidu-map",
+        "baidu-map-gl",
+        "BMapGLLib",
+        "drawing-manager"
+    ],
+    "author": "dot-app",
+    "license": "MIT"
+}
