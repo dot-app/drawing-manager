@@ -1224,12 +1224,25 @@ if ("ontouchend" in document === false) {
 		/**
 		 * 鼠标点击的事件
 		 */
+
+		var lastTouchTime = 0;
 		var startAction = function (e) {
+			if (MOBILE) {
+				var currentTime = e.timeStamp;
+				if (currentTime - lastTouchTime < 200) {
+					// 双击事件
+					setTimeout(() => {
+						console.log("startAction dblclickAction");
+						dblclickAction(e);
+					}, 200);
+				}
+				lastTouchTime = currentTime;
+			}
+
 			if (me.controlButton === "right" && (e.button === 1 || e.button === 0)) {
 				return;
 			}
 			e = me._fixTouch(e);
-			console.log("startAction click");
 
 			var point = e.point;
 			if (match) {
@@ -1239,14 +1252,28 @@ if ("ontouchend" in document === false) {
 
 			drawPoint = points.concat(points[points.length - 1]);
 
+			console.log("startAction click", points);
+
 			if (points.length == 1) {
 				if (me._drawingType == BMAP_DRAWING_POLYLINE) {
 					overlay = new BMapGL.Polyline(drawPoint, me.polylineOptions);
 				} else if (me._drawingType == BMAP_DRAWING_POLYGON) {
 					overlay = new BMapGL.Polygon(drawPoint, me.polygonOptions);
 				}
-
 				map.addOverlay(overlay);
+				//========== 添加起点标注 ==========
+				if (MOBILE) {
+					tip_label = new BMapGL.Label("开始测量，双击结束", {
+						position: point,
+						offset: new BMapGL.Size(-60, -50),
+					});
+					tip_label.setStyle(me.labelOptions);
+					map.addOverlay(tip_label);
+
+					tip_marker = new BMapGL.Marker(e.point, me.markerOptions);
+					map.addOverlay(tip_marker);
+				}
+				//========== END 添加起点标注 ==========
 			} else {
 				overlay.setPath(drawPoint);
 			}
@@ -1286,9 +1313,7 @@ if ("ontouchend" in document === false) {
 
 			map.removeOverlay(tip_label);
 
-			let text1 = "单击绘制下一个点，双击完成绘制";
-			if (MOBILE) text1 = "点击绘制下一个点，长按完成绘制";
-			tip_label = new BMapGL.Label(text1, {
+			tip_label = new BMapGL.Label("单击绘制下一个点，双击完成绘制", {
 				position: e.point, // 指定文本标注所在的地理位置
 				offset: new BMapGL.Size(10, 10), // 设置文本偏移量
 			});
@@ -1310,6 +1335,8 @@ if ("ontouchend" in document === false) {
 			mask.removeEventListener(TOUCH_START, startAction);
 			if (MOBILE) {
 				mask.removeEventListener(TOUCH_END, endAction);
+				map.removeOverlay(tip_label);
+				map.removeOverlay(tip_marker);
 			} else {
 				mask.removeEventListener(TOUCH_MOVE, mousemoveAction);
 				mask.removeEventListener(TOUCH_MOVE, moveAction);
@@ -1392,7 +1419,7 @@ if ("ontouchend" in document === false) {
 			// map.disablePinchToZoom();
 			// map.disableTilt();
 			// map.disableRotate();
-			// map.disableAutoResize(); 
+			// map.disableAutoResize();
 		};
 
 		/**
@@ -1427,15 +1454,23 @@ if ("ontouchend" in document === false) {
 			baidu.stopBubble(e);
 		});
 
-		if (MOBILE) {
-			mask.addEventListener(TOUCH_START, function (e) {
-				time1 = setTimeout(() => {
-					startAction(e);
-					console.log("startAction dblclickAction");
-					dblclickAction(e);
-				}, 1500);
-			});
-		}
+		// if (MOBILE) {
+		// 	var lastTouchTime = 0;
+		// 	if (currentTime - lastTouchTime < 500) {
+		// 		// 双击事件
+		// 	} else {
+		// 		// 单击事件
+		// 	}
+		// 	lastTouchTime = currentTime;
+
+		// 	mask.addEventListener(TOUCH_START, function (e) {
+		// 		time1 = setTimeout(() => {
+		// 			startAction(e);
+		// 			console.log("startAction dblclickAction");
+		// 			dblclickAction(e);
+		// 		}, 1500);
+		// 	});
+		// }
 		// map.disablePinchToZoom();
 		// map.disableDragging();
 		// map.disableTiltGestures();
@@ -1446,6 +1481,7 @@ if ("ontouchend" in document === false) {
 	 * 绑定鼠标画圆的事件
 	 */
 	var tip_label = null;
+	var tip_marker = null;
 	DrawingManager.prototype._bindCircle = function () {
 		var me = this,
 			map = this._map,
